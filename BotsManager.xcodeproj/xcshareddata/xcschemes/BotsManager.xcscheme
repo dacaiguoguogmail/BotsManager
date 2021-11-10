@@ -64,11 +64,15 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "xcbot://192.168.4.12/botID/1f6cb7077b6ade1826c36764381804d6"
+            argument = "xcbot://joyu%E7%9A%84Mac%20Pro/botID/09ce7ea4def672a1a5ab26489f560c6b"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--branch=test"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "xcbot://10.33.2.67/botID/3d74e06f877c9a737460423f550056e6"
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>

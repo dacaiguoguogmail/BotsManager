@@ -40,10 +40,22 @@ int main(int argc, const char * argv[]) {
                 name = [arguItem substringFromIndex:@"--name=".length];
             }
         }
-
+        
+        if (botLink.length == 0) {
+            return 1;
+        }
+        
         NSURL *botLinkUrl = [NSURL URLWithString:botLink];
         // port is 20343
         NSString *server = [NSString stringWithFormat:@"https://%@:20343", botLinkUrl.host];
+        // IP地址的处理
+        if ([botLinkUrl.host componentsSeparatedByString:@"."].count == 4) {
+            server = [NSString stringWithFormat:@"https://%@:20343", botLinkUrl.host];
+        } else {
+            // todo test
+            // server = [NSString stringWithFormat:@"https://%@/xcode/internal", [botLinkUrl.host stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLHostAllowedCharacterSet]];
+            server = [NSString stringWithFormat:@"https://%@:20343", @"10.33.2.67"];
+        }
         NSString *botId = botLinkUrl.lastPathComponent;
         if (isUpdate) {
            return updateBot(server, botId, name, branch);
@@ -120,7 +132,8 @@ int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branc
 int cleanBotIntegrations(NSString *server, NSString *botId) {
     NSString *integrationsUrl = [NSString stringWithFormat:@"%@/api/bots/%@/integrations", server, botId];
     NSLog(@"GET integrations list");
-    NSMutableURLRequest *requestIntegrations = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:integrationsUrl]];
+    NSURL *serverUrl = [NSURL URLWithString:integrationsUrl];
+    NSMutableURLRequest *requestIntegrations = [[NSMutableURLRequest alloc] initWithURL:serverUrl];
     requestIntegrations.HTTPMethod = @"GET";
     [requestIntegrations setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];/// 必须设置Content-Type application/json
     requestIntegrations.timeoutInterval = 15;
