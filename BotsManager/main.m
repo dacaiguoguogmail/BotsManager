@@ -46,7 +46,7 @@ int main(int argc, const char * argv[]) {
             }
         }
         
-        if (botLink.length == 0) {
+        if (!isListBots && botLink.length == 0) {
             return 1;
         }
         
@@ -92,11 +92,7 @@ int getBotList(NSString *server) {
         }
         NSMutableDictionary *jsonDic = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers|NSJSONReadingMutableLeaves error:nil];
         NSArray *botsList = jsonDic[@"results"];
-        for (NSMutableDictionary *jsonResultDic in botsList) {
-            NSString *apiBotId = jsonResultDic[@"_id"];
-            cleanBotIntegrations(server, apiBotId);
-            NSLog(@"cleanBotIntegrations:%@", apiBotId);
-        }
+        NSLog(@"%@", botsList);
     }] resume];
     [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:NSDate.distantFuture];
     return 0;
