@@ -15,6 +15,7 @@
 int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branch);
 int cleanBotIntegrations(NSString *server, NSString *botId);
 int getBotList(NSString *server);
+int duplicateBot(NSString *server, NSString *botId);
 
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
@@ -25,6 +26,8 @@ int main(int argc, const char * argv[]) {
         BOOL isListBots = NO;
         NSString *branch = nil;
         NSString *name = nil;
+        NSString *duplicate = nil;
+        
         for (NSString *arguItem in arguments) {
             if ([arguItem hasPrefix:@"xcbot://"]) {
                 botLink = arguItem;
@@ -32,8 +35,9 @@ int main(int argc, const char * argv[]) {
             if ([arguItem isEqualToString:@"--clean"]) {
                 isClean = YES;
             }
-            if ([arguItem isEqualToString:@"--update"]) {
-                isUpdate = YES;
+//            --duplicate=08ce47a557c200230c07ccb6ea0014d4
+            if ([arguItem hasPrefix:@"--duplicate"]) {
+                duplicate = [arguItem substringFromIndex:@"--duplicate=".length];
             }
             if ([arguItem isEqualToString:@"--list"]) {
                 isListBots = YES;
@@ -46,7 +50,7 @@ int main(int argc, const char * argv[]) {
             }
         }
         
-        if (!isListBots && botLink.length == 0) {
+        if (!isListBots && botLink.length == 0 && duplicate.length == 0) {
             return 1;
         }
         
@@ -66,7 +70,9 @@ int main(int argc, const char * argv[]) {
         } else {
             
             NSString *botId = botLinkUrl.lastPathComponent;
-            if (isUpdate) {
+            if (duplicate.length > 0) {
+                duplicateBot(server, duplicate);
+            } else if (isUpdate) {
                return updateBot(server, botId, name, branch);
             } else if (isClean) {
                 return cleanBotIntegrations(server, botId);
@@ -77,8 +83,6 @@ int main(int argc, const char * argv[]) {
 }
 
 int getBotList(NSString *server) {
-    /// /Applications/Xcode.app/Contents/Developer/usr/share/xcs/xcsd/classes/botClass.js  写了 if (req.query.overwriteBlueprint === 'true') { 坑啊 ，文档里根本没提好吗！
-    /// 在/Applications/Xcode.app/Contents/Developer/usr/share/xcs/xcsd/ 搜索 req.query 好好研究研究
     NSString *apiBotUrl = [NSString stringWithFormat:@"%@/api/bots", server];
     NSMutableURLRequest *requestBot = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:apiBotUrl]];
     requestBot.HTTPMethod = @"GET";
@@ -93,6 +97,33 @@ int getBotList(NSString *server) {
         NSMutableDictionary *jsonDic = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers|NSJSONReadingMutableLeaves error:nil];
         NSArray *botsList = jsonDic[@"results"];
         NSLog(@"%@", botsList);
+    }] resume];
+    [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:NSDate.distantFuture];
+    return 0;
+}
+
+int duplicateBot(NSString *server, NSString *botId) {
+    NSString *apiBotUrl = [NSString stringWithFormat:@"%@/api/bots/%@/duplicate", server, botId];
+    NSMutableURLRequest *requestBot = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:apiBotUrl]];
+    requestBot.HTTPMethod = @"POST";
+    [requestBot setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];/// 必须设置Content-Type application/json
+    requestBot.timeoutInterval = 15;
+    NSLog(@"duplicate POST bot:%@", botId);
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:NSURLSessionConfiguration.defaultSessionConfiguration delegate:SessionDelegate.sharedDelegate delegateQueue:nil];
+    [[session dataTaskWithRequest:requestBot completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        if (!data) {
+            NSLog(@"duplicate bot failed");
+            exit(1);
+        }
+        NSHTTPURLResponse *httpRes = (NSHTTPURLResponse *)response;
+        if (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+            NSMutableDictionary *jsonDic = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers|NSJSONReadingMutableLeaves error:nil];
+            NSLog(@"%@", jsonDic);
+        } else {
+            NSLog(@"duplicate bot failed");
+            exit(1);
+        }
+
     }] resume];
     [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:NSDate.distantFuture];
     return 0;
