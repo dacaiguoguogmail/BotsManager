@@ -14,6 +14,7 @@
 
 int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branch);
 int cleanBotIntegrations(NSString *server, NSString *botId);
+int getBotList(NSString *server);
 
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
@@ -21,6 +22,7 @@ int main(int argc, const char * argv[]) {
         NSString *botLink = nil;// @"xcbot://<some ip address>/botID/<id like a42c771897a0b751535rbee8a8aedf1f>";
         BOOL isClean = NO;
         BOOL isUpdate = NO;
+        BOOL isListBots = NO;
         NSString *branch = nil;
         NSString *name = nil;
         for (NSString *arguItem in arguments) {
@@ -32,6 +34,9 @@ int main(int argc, const char * argv[]) {
             }
             if ([arguItem isEqualToString:@"--update"]) {
                 isUpdate = YES;
+            }
+            if ([arguItem isEqualToString:@"--list"]) {
+                isListBots = YES;
             }
             if ([arguItem hasPrefix:@"--branch="]) {
                 branch = [arguItem substringFromIndex:@"--branch=".length];
@@ -54,19 +59,48 @@ int main(int argc, const char * argv[]) {
         } else {
             // todo test
             // server = [NSString stringWithFormat:@"https://%@/xcode/internal", [botLinkUrl.host stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLHostAllowedCharacterSet]];
-            server = [NSString stringWithFormat:@"https://%@:20343", @"10.33.2.67"];
+            server = [NSString stringWithFormat:@"https://%@:20343", @"10.41.0.36"];
         }
-        NSString *botId = botLinkUrl.lastPathComponent;
-        if (isUpdate) {
-           return updateBot(server, botId, name, branch);
-        }
-        if (isClean) {
-            return cleanBotIntegrations(server, botId);
+        if (isListBots) {
+            getBotList(server);
+        } else {
+            
+            NSString *botId = botLinkUrl.lastPathComponent;
+            if (isUpdate) {
+               return updateBot(server, botId, name, branch);
+            } else if (isClean) {
+                return cleanBotIntegrations(server, botId);
+            }
         }
     }
     return 0;
 }
 
+int getBotList(NSString *server) {
+    /// /Applications/Xcode.app/Contents/Developer/usr/share/xcs/xcsd/classes/botClass.js  写了 if (req.query.overwriteBlueprint === 'true') { 坑啊 ，文档里根本没提好吗！
+    /// 在/Applications/Xcode.app/Contents/Developer/usr/share/xcs/xcsd/ 搜索 req.query 好好研究研究
+    NSString *apiBotUrl = [NSString stringWithFormat:@"%@/api/bots", server];
+    NSMutableURLRequest *requestBot = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:apiBotUrl]];
+    requestBot.HTTPMethod = @"GET";
+    [requestBot setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];/// 必须设置Content-Type application/json
+    requestBot.timeoutInterval = 15;
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:NSURLSessionConfiguration.defaultSessionConfiguration delegate:SessionDelegate.sharedDelegate delegateQueue:nil];
+    [[session dataTaskWithRequest:requestBot completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        if (!data) {
+            NSLog(@"GET bot failed");
+            exit(1);
+        }
+        NSMutableDictionary *jsonDic = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers|NSJSONReadingMutableLeaves error:nil];
+        NSArray *botsList = jsonDic[@"results"];
+        for (NSMutableDictionary *jsonResultDic in botsList) {
+            NSString *apiBotId = jsonResultDic[@"_id"];
+            cleanBotIntegrations(server, apiBotId);
+            NSLog(@"cleanBotIntegrations:%@", apiBotId);
+        }
+    }] resume];
+    [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:NSDate.distantFuture];
+    return 0;
+}
 
 int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branch) {
     /// /Applications/Xcode.app/Contents/Developer/usr/share/xcs/xcsd/classes/botClass.js  写了 if (req.query.overwriteBlueprint === 'true') { 坑啊 ，文档里根本没提好吗！
@@ -177,15 +211,15 @@ int cleanBotIntegrations(NSString *server, NSString *botId) {
 
             dispatch_group_notify(group, dispatch_get_main_queue(), ^{
                 NSLog(@"DELETE group is over");
-                exit(0);
+//                exit(0);
             });
             NSLog(@"DELETE task is beginning over");
 
         } else {
             NSLog(@"There is no integrations to DELETE");
-            exit(0);
+//            exit(0);
         }
     }] resume];
-    [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:NSDate.distantFuture];
+//    [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:NSDate.distantFuture];
     return 0;
 }

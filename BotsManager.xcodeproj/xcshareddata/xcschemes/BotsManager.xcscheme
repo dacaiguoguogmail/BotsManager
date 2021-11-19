@@ -53,6 +53,10 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "--clean"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "--list"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
@@ -65,7 +69,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "xcbot://joyu%E7%9A%84Mac%20Pro/botID/09ce7ea4def672a1a5ab26489f560c6b"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--branch=test"
