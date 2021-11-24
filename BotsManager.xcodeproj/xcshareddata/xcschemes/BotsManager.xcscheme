@@ -68,6 +68,10 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
+            argument = "--botId=08ce47a557c200230c07ccb6ea0014d4"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "--update"
             isEnabled = "NO">
          </CommandLineArgument>
