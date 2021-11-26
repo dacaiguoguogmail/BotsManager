@@ -65,14 +65,18 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--duplicate"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "--version=8.7.80"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--delete"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "--botId=08ce47a557c200230c07ccb6ea0014d4"
+            argument = "--botId=5d5fb2a72889b955e36f4e6e76007779"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
@@ -85,7 +89,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--update"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>

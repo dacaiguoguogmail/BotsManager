@@ -12,10 +12,10 @@
 /// https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/XcodeServerAPIReference/Integrations.html 官方文档
 /// https://xcodeserverapidocs.docs.apiary.io/#reference/bots/bot/edit-a-bot 比官方文档更全
 int getBotList(NSString *server);
-int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branch);
+int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branch, NSString *version);
 int cleanBotIntegrations(NSString *server, NSString *botId);
 int deleteBot(NSString *server, NSString *botId);
-int duplicateBot(NSString *server, NSString *botId, NSString *name, NSString *branch);
+int duplicateBot(NSString *server, NSString *botId, NSString *name, NSString *branch, NSString *version);
 
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
@@ -28,11 +28,15 @@ int main(int argc, const char * argv[]) {
         NSString *name = nil;
         NSString *botId = nil;
         NSString *host = nil;
+        NSString *version = nil;
         BOOL duplicate = NO;
         
         for (NSString *arguItem in arguments) {
             if ([arguItem isEqualToString:@"--clean"]) {
                 isClean = YES;
+            }
+            if ([arguItem isEqualToString:@"--update"]) {
+                isUpdate = YES;
             }
             if ([arguItem isEqualToString:@"--delete"]) {
                 isDelete = YES;
@@ -45,6 +49,9 @@ int main(int argc, const char * argv[]) {
             }
             if ([arguItem hasPrefix:@"--branch="]) {
                 branch = [arguItem substringFromIndex:@"--branch=".length];
+            }
+            if ([arguItem hasPrefix:@"--version="]) {
+                version = [arguItem substringFromIndex:@"--version=".length];
             }
             if ([arguItem hasPrefix:@"--name="]) {
                 name = [arguItem substringFromIndex:@"--name=".length];
@@ -74,9 +81,9 @@ int main(int argc, const char * argv[]) {
                 return 1;
             }
             if (duplicate) {
-                duplicateBot(server, botId, name, branch);
+                duplicateBot(server, botId, name, branch, version);
             } else if (isUpdate) {
-                return updateBot(server, botId, name, branch);
+                return updateBot(server, botId, name, branch, version);
             } else if (isClean) {
                 return cleanBotIntegrations(server, botId);
             } else if (isDelete) {
@@ -107,7 +114,7 @@ int getBotList(NSString *server) {
     return 0;
 }
 
-int duplicateBot(NSString *server, NSString *botId, NSString *name, NSString *branch) {
+int duplicateBot(NSString *server, NSString *botId, NSString *name, NSString *branch, NSString *version) {
     NSString *apiBotUrl = [NSString stringWithFormat:@"%@/api/bots/%@/duplicate", server, botId];
     NSMutableURLRequest *requestBot = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:apiBotUrl]];
     requestBot.HTTPMethod = @"POST";
@@ -128,6 +135,14 @@ int duplicateBot(NSString *server, NSString *botId, NSString *name, NSString *br
 
             NSMutableDictionary *configuration = postDic[@"configuration"];
             NSMutableDictionary *sourceControlBlueprint = configuration[@"sourceControlBlueprint"];
+            if (version.length > 0) {
+                NSMutableArray *triggers = configuration[@"triggers"];
+                for (NSMutableDictionary *tirggersItem in triggers) {
+                    NSString *scriptBody = tirggersItem[@"scriptBody"];
+                    NSString *newscriptBody = [scriptBody stringByReplacingOccurrencesOfString:@"8.7.80" withString:version];
+                    tirggersItem[@"scriptBody"] = newscriptBody;
+                }
+            }
             NSMutableDictionary *DVTSourceControlWorkspaceBlueprintLocationsKey = sourceControlBlueprint[@"DVTSourceControlWorkspaceBlueprintLocationsKey"];
 
             NSMutableDictionary *DVTSourceControlBranch = nil;
@@ -176,7 +191,7 @@ int duplicateBot(NSString *server, NSString *botId, NSString *name, NSString *br
     return 0;
 }
 
-int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branch) {
+int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branch, NSString *version) {
     /// /Applications/Xcode.app/Contents/Developer/usr/share/xcs/xcsd/classes/botClass.js  写了 if (req.query.overwriteBlueprint === 'true') { 坑啊 ，文档里根本没提好吗！
     /// 在/Applications/Xcode.app/Contents/Developer/usr/share/xcs/xcsd/ 搜索 req.query 好好研究研究
     NSString *apiBotUrl = [NSString stringWithFormat:@"%@/api/bots/%@", server, botId];
@@ -187,17 +202,26 @@ int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branc
     NSLog(@"GET bot:%@", botId);
     NSURLSession *session = [NSURLSession sessionWithConfiguration:NSURLSessionConfiguration.defaultSessionConfiguration delegate:SessionDelegate.sharedDelegate delegateQueue:nil];
     [[session dataTaskWithRequest:requestBot completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-        if (!data) {
-            NSLog(@"GET bot failed");
+        NSHTTPURLResponse *httpRes = (NSHTTPURLResponse *)response;
+        NSMutableDictionary *jsonDic = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers|NSJSONReadingMutableLeaves error:nil];
+        if (httpRes.statusCode != 200) {
+            NSLog(@"GET bot failed\n%@", jsonDic);
             exit(1);
         }
-        NSMutableDictionary *jsonDic = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers|NSJSONReadingMutableLeaves error:nil];
         NSMutableDictionary *postDic = [NSMutableDictionary dictionary];
         postDic[@"configuration"] = jsonDic[@"configuration"];
         postDic[@"name"] = name;
         
         NSMutableDictionary *configuration = postDic[@"configuration"];
         NSMutableDictionary *sourceControlBlueprint = configuration[@"sourceControlBlueprint"];
+        if (version.length > 0) {
+            NSMutableArray *triggers = configuration[@"triggers"];
+            for (NSMutableDictionary *tirggersItem in triggers) {
+                NSString *scriptBody = tirggersItem[@"scriptBody"];
+                NSString *newscriptBody = [scriptBody stringByReplacingOccurrencesOfString:@"8.7.80" withString:version];
+                tirggersItem[@"scriptBody"] = newscriptBody;
+            }
+        }
         NSMutableDictionary *DVTSourceControlWorkspaceBlueprintLocationsKey = sourceControlBlueprint[@"DVTSourceControlWorkspaceBlueprintLocationsKey"];
         
         NSMutableDictionary *DVTSourceControlBranch = nil;
@@ -224,7 +248,7 @@ int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branc
         request.HTTPBody = postData;
         [[session dataTaskWithRequest:request completionHandler:^(NSData * _Nullable resData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
             NSHTTPURLResponse *httpRes = (NSHTTPURLResponse *)response;
-            //NSLog(@"%@", httpRes);
+            NSLog(@"%@", httpRes);
             NSLog(@"%@", error);
             NSDictionary *jsonData = [NSJSONSerialization JSONObjectWithData:resData options:0 error:nil];
             NSData *prettyData = [NSJSONSerialization dataWithJSONObject:jsonData options:NSJSONWritingPrettyPrinted error:nil];
@@ -254,8 +278,8 @@ int cleanBotIntegrations(NSString *server, NSString *botId) {
         }
         NSDictionary *jsonDictionary = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         NSArray *results = jsonDictionary[@"results"];
-        results = [results subarrayWithRange:NSMakeRange(1, results.count - 1)];
-        if (results.count > 0) {
+        if (results.count > 1) {
+            results = [results subarrayWithRange:NSMakeRange(1, results.count - 1)];
             dispatch_group_t group = dispatch_group_create();
             NSLog(@"There is %d tasks to be DELETE", (int)results.count);
 
