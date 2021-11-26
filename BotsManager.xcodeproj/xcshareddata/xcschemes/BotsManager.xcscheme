@@ -60,11 +60,15 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "--name=LvT333"
-            isEnabled = "NO">
+            argument = "--host=10.41.0.36"
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "--duplicate=08ce47a557c200230c07ccb6ea0014d4"
+            argument = "--duplicate"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "--delete"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
@@ -72,19 +76,15 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
+            argument = "--name=LvmmBotsyg_26256"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "--branch=syg_26256"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "--update"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "xcbot://joyu%E7%9A%84Mac%20Pro/botID/09ce7ea4def672a1a5ab26489f560c6b"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "--branch=test"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "xcbot://10.33.2.67/botID/3d74e06f877c9a737460423f550056e6"
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>

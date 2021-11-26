@@ -11,33 +11,34 @@
 
 /// https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/XcodeServerAPIReference/Integrations.html 官方文档
 /// https://xcodeserverapidocs.docs.apiary.io/#reference/bots/bot/edit-a-bot 比官方文档更全
-
+int getBotList(NSString *server);
 int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branch);
 int cleanBotIntegrations(NSString *server, NSString *botId);
-int getBotList(NSString *server);
-int duplicateBot(NSString *server, NSString *botId);
+int deleteBot(NSString *server, NSString *botId);
+int duplicateBot(NSString *server, NSString *botId, NSString *name, NSString *branch);
 
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
         NSArray<NSString *> *arguments = [NSProcessInfo processInfo].arguments;
-        NSString *botLink = nil;// @"xcbot://<some ip address>/botID/<id like a42c771897a0b751535rbee8a8aedf1f>";
         BOOL isClean = NO;
         BOOL isUpdate = NO;
+        BOOL isDelete = NO;
         BOOL isListBots = NO;
         NSString *branch = nil;
         NSString *name = nil;
-        NSString *duplicate = nil;
+        NSString *botId = nil;
+        NSString *host = nil;
+        BOOL duplicate = NO;
         
         for (NSString *arguItem in arguments) {
-            if ([arguItem hasPrefix:@"xcbot://"]) {
-                botLink = arguItem;
-            }
             if ([arguItem isEqualToString:@"--clean"]) {
                 isClean = YES;
             }
-//            --duplicate=08ce47a557c200230c07ccb6ea0014d4
-            if ([arguItem hasPrefix:@"--duplicate"]) {
-                duplicate = [arguItem substringFromIndex:@"--duplicate=".length];
+            if ([arguItem isEqualToString:@"--delete"]) {
+                isDelete = YES;
+            }
+            if ([arguItem isEqualToString:@"--duplicate"]) {
+                duplicate = YES;
             }
             if ([arguItem isEqualToString:@"--list"]) {
                 isListBots = YES;
@@ -48,33 +49,37 @@ int main(int argc, const char * argv[]) {
             if ([arguItem hasPrefix:@"--name="]) {
                 name = [arguItem substringFromIndex:@"--name=".length];
             }
+            if ([arguItem hasPrefix:@"--botId="]) {
+                botId = [arguItem substringFromIndex:@"--botId=".length];
+            }
+            if ([arguItem hasPrefix:@"--host="]) {
+                host = [arguItem substringFromIndex:@"--host=".length];
+            }
         }
-        
-        if (!isListBots && botLink.length == 0 && duplicate.length == 0) {
+
+        if (host.length == 0) {
+            NSLog(@"need --host=1.2.3.4");
             return 1;
         }
-        
-        NSURL *botLinkUrl = [NSURL URLWithString:botLink];
+
         // port is 20343
-        NSString *server = [NSString stringWithFormat:@"https://%@:20343", botLinkUrl.host];
-        // IP地址的处理
-        if ([botLinkUrl.host componentsSeparatedByString:@"."].count == 4) {
-            server = [NSString stringWithFormat:@"https://%@:20343", botLinkUrl.host];
-        } else {
-            // todo test
-            // server = [NSString stringWithFormat:@"https://%@/xcode/internal", [botLinkUrl.host stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLHostAllowedCharacterSet]];
-            server = [NSString stringWithFormat:@"https://%@:20343", @"10.41.0.36"];
-        }
+        NSString *server = [NSString stringWithFormat:@"https://%@:20343", host];
+        // server = [NSString stringWithFormat:@"https://%@/xcode/internal", [botLinkUrl.host stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLHostAllowedCharacterSet]];
+
         if (isListBots) {
             getBotList(server);
         } else {
-            
-            NSString *botId = botLinkUrl.lastPathComponent;
-            if (duplicate.length > 0) {
-                duplicateBot(server, duplicate);
+            if (botId.length == 0) {
+                NSLog(@"need --botId=fsldjfls11213");
+                return 1;
+            }
+            if (duplicate) {
+                duplicateBot(server, botId, name, branch);
             } else if (isUpdate) {
-               return updateBot(server, botId, name, branch);
+                return updateBot(server, botId, name, branch);
             } else if (isClean) {
+                return cleanBotIntegrations(server, botId);
+            } else if (isDelete) {
                 return cleanBotIntegrations(server, botId);
             }
         }
@@ -102,13 +107,12 @@ int getBotList(NSString *server) {
     return 0;
 }
 
-int duplicateBot(NSString *server, NSString *botId) {
+int duplicateBot(NSString *server, NSString *botId, NSString *name, NSString *branch) {
     NSString *apiBotUrl = [NSString stringWithFormat:@"%@/api/bots/%@/duplicate", server, botId];
     NSMutableURLRequest *requestBot = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:apiBotUrl]];
     requestBot.HTTPMethod = @"POST";
     [requestBot setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];/// 必须设置Content-Type application/json
     requestBot.timeoutInterval = 15;
-    NSLog(@"duplicate POST bot:%@", botId);
     NSURLSession *session = [NSURLSession sessionWithConfiguration:NSURLSessionConfiguration.defaultSessionConfiguration delegate:SessionDelegate.sharedDelegate delegateQueue:nil];
     [[session dataTaskWithRequest:requestBot completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         if (!data) {
@@ -118,7 +122,50 @@ int duplicateBot(NSString *server, NSString *botId) {
         NSHTTPURLResponse *httpRes = (NSHTTPURLResponse *)response;
         if (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
             NSMutableDictionary *jsonDic = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers|NSJSONReadingMutableLeaves error:nil];
-            NSLog(@"%@", jsonDic);
+            NSMutableDictionary *postDic = [NSMutableDictionary dictionary];
+            postDic[@"configuration"] = jsonDic[@"configuration"];
+            postDic[@"name"] = name;
+
+            NSMutableDictionary *configuration = postDic[@"configuration"];
+            NSMutableDictionary *sourceControlBlueprint = configuration[@"sourceControlBlueprint"];
+            NSMutableDictionary *DVTSourceControlWorkspaceBlueprintLocationsKey = sourceControlBlueprint[@"DVTSourceControlWorkspaceBlueprintLocationsKey"];
+
+            NSMutableDictionary *DVTSourceControlBranch = nil;
+            for (NSMutableDictionary *value in DVTSourceControlWorkspaceBlueprintLocationsKey.allValues) {
+                if ([value[@"DVTSourceControlWorkspaceBlueprintLocationTypeKey"] isEqualToString:@"DVTSourceControlBranch"]) {
+                    DVTSourceControlBranch = value;
+                }
+            }
+            DVTSourceControlBranch[@"DVTSourceControlBranchIdentifierKey"] = branch;
+            if (branch.length > 0) {
+                if (!DVTSourceControlBranch) {
+                    NSLog(@"GET DVTSourceControlBranch failed");
+                    exit(1);
+                }
+            }
+
+            NSString *updateUrl = [NSString stringWithFormat:@"%@/api/bots/%@?overwriteBlueprint=true", server, jsonDic[@"_id"]];
+            NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:updateUrl]];
+            request.HTTPMethod = @"PATCH";
+            request.timeoutInterval = 15;
+            [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];/// 必须设置Content-Type application/json
+
+            NSData *postData = [NSJSONSerialization dataWithJSONObject:postDic options:0 error:nil];
+            request.HTTPBody = postData;
+            [[session dataTaskWithRequest:request completionHandler:^(NSData * _Nullable resData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+                NSHTTPURLResponse *httpRes = (NSHTTPURLResponse *)response;
+                if (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+                    NSDictionary *jsonData = [NSJSONSerialization JSONObjectWithData:resData options:0 error:nil];
+                    NSString *newId = jsonData[@"_id"];
+                    printf("%s", newId.UTF8String);
+                    exit(0);
+                } else {
+                    NSLog(@"%@", httpRes);
+                    NSLog(@"%@", error);
+                    exit(1);
+                }
+
+            }] resume];
         } else {
             NSLog(@"duplicate bot failed");
             exit(1);
@@ -177,7 +224,7 @@ int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branc
         request.HTTPBody = postData;
         [[session dataTaskWithRequest:request completionHandler:^(NSData * _Nullable resData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
             NSHTTPURLResponse *httpRes = (NSHTTPURLResponse *)response;
-            NSLog(@"%@", httpRes);
+            //NSLog(@"%@", httpRes);
             NSLog(@"%@", error);
             NSDictionary *jsonData = [NSJSONSerialization JSONObjectWithData:resData options:0 error:nil];
             NSData *prettyData = [NSJSONSerialization dataWithJSONObject:jsonData options:NSJSONWritingPrettyPrinted error:nil];
@@ -238,15 +285,39 @@ int cleanBotIntegrations(NSString *server, NSString *botId) {
 
             dispatch_group_notify(group, dispatch_get_main_queue(), ^{
                 NSLog(@"DELETE group is over");
-//                exit(0);
+                exit(0);
             });
             NSLog(@"DELETE task is beginning over");
 
         } else {
             NSLog(@"There is no integrations to DELETE");
-//            exit(0);
+            exit(0);
         }
     }] resume];
-//    [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:NSDate.distantFuture];
+    [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:NSDate.distantFuture];
+    return 0;
+}
+
+
+int deleteBot(NSString *server, NSString *botId) {
+    NSString *integrationsUrl = [NSString stringWithFormat:@"%@/api/bots/%@", server, botId];
+    NSURL *serverUrl = [NSURL URLWithString:integrationsUrl];
+    NSMutableURLRequest *requestIntegrations = [[NSMutableURLRequest alloc] initWithURL:serverUrl];
+    requestIntegrations.HTTPMethod = @"DELETE";
+    [requestIntegrations setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];/// 必须设置Content-Type application/json
+    requestIntegrations.timeoutInterval = 15;
+    NSLog(@"Delete bot:%@", botId);
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:NSURLSessionConfiguration.defaultSessionConfiguration delegate:SessionDelegate.sharedDelegate delegateQueue:nil];
+    [[session dataTaskWithRequest:requestIntegrations completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        NSHTTPURLResponse *httpRes = (NSHTTPURLResponse *)response;
+        if (httpRes.statusCode == 200 || httpRes.statusCode == 204) {
+            NSLog(@"DELETE Success: %@", botId);
+            exit(0);
+        } else {
+            NSLog(@"DELETE Failed: %@", botId);
+            exit(1);
+        }
+    }] resume];
+    [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:NSDate.distantFuture];
     return 0;
 }
