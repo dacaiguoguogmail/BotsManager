@@ -76,15 +76,15 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "--botId=5d5fb2a72889b955e36f4e6e76007779"
+            argument = "--botId=68eadc62d941f612a4904f728600507b"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "--name=LvmmBotsyg_26256"
+            argument = "--name=LvmmBot26256"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "--branch=syg_26256"
+            argument = "--branch=26256"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

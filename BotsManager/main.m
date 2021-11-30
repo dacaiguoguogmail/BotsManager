@@ -135,12 +135,14 @@ int duplicateBot(NSString *server, NSString *botId, NSString *name, NSString *br
 
             NSMutableDictionary *configuration = postDic[@"configuration"];
             NSMutableDictionary *sourceControlBlueprint = configuration[@"sourceControlBlueprint"];
+
             if (version.length > 0) {
                 NSMutableArray *triggers = configuration[@"triggers"];
                 for (NSMutableDictionary *tirggersItem in triggers) {
-                    NSString *scriptBody = tirggersItem[@"scriptBody"];
-                    NSString *newscriptBody = [scriptBody stringByReplacingOccurrencesOfString:@"8.7.80" withString:version];
-                    tirggersItem[@"scriptBody"] = newscriptBody;
+                    if ([tirggersItem[@"name"] isEqualToString:@"PreAction"]) {
+                        NSString *newscriptBody = [NSString stringWithFormat:@"#!/bin/sh\ncd $XCS_PRIMARY_REPO_DIR\nxcrun agvtool new-version -all \"%@.${XCS_INTEGRATION_NUMBER}\"\n#sh ~/workspace/CommandLineTools/XcodeServer/LvmmPreArchive.sh\n\n", version];
+                        tirggersItem[@"scriptBody"] = newscriptBody;
+                    }
                 }
             }
             NSMutableDictionary *DVTSourceControlWorkspaceBlueprintLocationsKey = sourceControlBlueprint[@"DVTSourceControlWorkspaceBlueprintLocationsKey"];
@@ -217,9 +219,10 @@ int updateBot(NSString *server, NSString *botId, NSString *name, NSString *branc
         if (version.length > 0) {
             NSMutableArray *triggers = configuration[@"triggers"];
             for (NSMutableDictionary *tirggersItem in triggers) {
-                NSString *scriptBody = tirggersItem[@"scriptBody"];
-                NSString *newscriptBody = [scriptBody stringByReplacingOccurrencesOfString:@"8.7.80" withString:version];
-                tirggersItem[@"scriptBody"] = newscriptBody;
+                if ([tirggersItem[@"name"] isEqualToString:@"PreAction"]) {
+                    NSString *newscriptBody = [NSString stringWithFormat:@"#!/bin/sh\ncd $XCS_PRIMARY_REPO_DIR\nxcrun agvtool new-version -all \"%@.${XCS_INTEGRATION_NUMBER}\"\n#sh ~/workspace/CommandLineTools/XcodeServer/LvmmPreArchive.sh\n\n", version];
+                    tirggersItem[@"scriptBody"] = newscriptBody;
+                }
             }
         }
         NSMutableDictionary *DVTSourceControlWorkspaceBlueprintLocationsKey = sourceControlBlueprint[@"DVTSourceControlWorkspaceBlueprintLocationsKey"];
